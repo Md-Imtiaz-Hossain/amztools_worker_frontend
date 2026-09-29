@@ -50,14 +50,15 @@ export function renderToolbar(containerEl, state, handlers) {
           </select>
         </div>
 
-        <!-- Download Button -->
+        <!-- Colorful Download Button with Excel, CSV, JSON -->
         <div class="download-group">
-          <button type="button" class="btn btn-secondary btn-download ${selectedCount === 0 ? 'btn-download-disabled' : ''}" id="btn-download" title="Export checked rows to CSV">
-            <span>📥 Download (${selectedCount})</span>
+          <button type="button" class="btn btn-colorful btn-download ${selectedCount === 0 ? 'btn-download-disabled' : ''}" id="btn-download" title="Export checked rows to Excel/CSV">
+            <span>📥 Download (${selectedCount}) ▾</span>
           </button>
           <div class="download-dropdown" id="download-dropdown" style="display: none;">
-            <button type="button" class="dropdown-item" id="btn-dl-csv">Export as CSV</button>
-            <button type="button" class="dropdown-item" id="btn-dl-json">Export as JSON</button>
+            <button type="button" class="dropdown-item" id="btn-dl-excel">📊 Export as Excel (.xls)</button>
+            <button type="button" class="dropdown-item" id="btn-dl-csv">📄 Export as CSV (.csv)</button>
+            <button type="button" class="dropdown-item" id="btn-dl-json">🧾 Export as JSON (.json)</button>
           </div>
         </div>
 
@@ -146,6 +147,11 @@ function bindToolbarEvents(containerEl, state, handlers) {
     });
 
     document.addEventListener('click', () => {
+      downloadDropdown.style.display = 'none';
+    });
+
+    containerEl.querySelector('#btn-dl-excel').addEventListener('click', () => {
+      downloadSelectedData(handlers.getSelectedProducts(), 'excel');
       downloadDropdown.style.display = 'none';
     });
 

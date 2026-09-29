@@ -1,6 +1,8 @@
 import { renderNavbar } from './src/components/navbar.js';
+import { renderWelcomeSection } from './src/components/welcomeSection.js';
 import { renderToolbar } from './src/components/tableToolbar.js';
 import { renderTable } from './src/components/table.js';
+import { renderFooter } from './src/components/footer.js';
 import { getVisibleColumnKeys, setVisibleColumnKeys } from './src/columns.js';
 import { Api } from './src/api.js';
 import { subscribeAuth } from './src/auth.js';
@@ -24,8 +26,10 @@ const state = {
 };
 
 // DOM Container Elements
+let welcomeContainer = null;
 let toolbarContainer = null;
 let tableContainer = null;
+let footerContainer = null;
 
 async function loadData() {
   state.isLoading = true;
@@ -177,24 +181,32 @@ function renderView() {
     }
   };
 
+  if (welcomeContainer) {
+    renderWelcomeSection(welcomeContainer, state);
+  }
   if (toolbarContainer) {
     renderToolbar(toolbarContainer, state, handlers);
   }
   if (tableContainer) {
     renderTable(tableContainer, state, handlers);
   }
+  if (footerContainer) {
+    renderFooter(footerContainer);
+  }
 }
 
 // App Initialization
 function initApp() {
+  welcomeContainer = document.getElementById('welcome-container');
   toolbarContainer = document.getElementById('toolbar-container');
   tableContainer = document.getElementById('table-container');
+  footerContainer = document.getElementById('footer-container');
 
   renderNavbar('navbar-container', () => {
     loadData();
   });
 
-  // Re-render when auth changes (e.g. login/logout reveals or hides Create & Action buttons)
+  // Re-render when auth changes (reveals/hides Create and Action buttons)
   subscribeAuth(() => {
     renderView();
   });

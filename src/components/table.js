@@ -1,6 +1,5 @@
-import { COLUMN_MAP, renderCellContent } from '../columns.js';
+import { COLUMN_MAP, NUMERIC_COLUMNS, renderCellContent } from '../columns.js';
 import { getAuthStatus } from '../auth.js';
-import { openColumnSearchModal } from './columnSearchModal.js';
 import { openDetailsModal } from './detailsModal.js';
 import { openEditModal } from './createEditModal.js';
 import { Api } from '../api.js';
@@ -17,7 +16,20 @@ export function renderTable(containerEl, state, handlers) {
 
   containerEl.innerHTML = `
     <div class="table-card">
-      <div class="table-responsive">
+      <!-- Colorful Quick-Scroll Control Bar (height matches row size) -->
+      <div class="table-scroll-controls-bar">
+        <div class="scroll-controls-left">
+          <span class="scroll-bar-label">⚡ Fast Navigation:</span>
+          <button type="button" class="btn btn-scroll btn-scroll-left" id="btn-scroll-left" title="Scroll table left">◀ Scroll Left</button>
+          <button type="button" class="btn btn-scroll btn-scroll-right" id="btn-scroll-right" title="Scroll table right">Scroll Right ▶</button>
+        </div>
+        <div class="scroll-controls-right">
+          <button type="button" class="btn btn-scroll btn-scroll-top" id="btn-scroll-top" title="Scroll to top of table">▲ Top</button>
+          <button type="button" class="btn btn-scroll btn-scroll-bottom" id="btn-scroll-bottom" title="Scroll to bottom of table">▼ Bottom</button>
+        </div>
+      </div>
+
+      <div class="table-responsive" id="table-scroll-container">
         <table class="data-table" id="main-data-table">
           <thead>
             <tr>
@@ -26,21 +38,60 @@ export function renderTable(containerEl, state, handlers) {
                 <input type="checkbox" id="th-select-all" ${allPageSelected ? 'checked' : ''} title="Select/Deselect all rows on this page" />
               </th>
 
-              <!-- Dynamic Visible Columns Headers -->
+              <!-- Details Column Header (Separate dedicated column) -->
+              <th class="th-details-col">
+                <div class="th-top-row">
+                  <span class="th-label">Details</span>
+                </div>
+              </th>
+
+              <!-- Dynamic Visible Columns with Inline Search (Newline) & Resizers -->
               ${visibleCols.map(col => {
                 const isSorted = state.sortBy === col.key;
                 const sortArrow = isSorted ? (state.sortOrder === 'ASC' ? '▲' : '▼') : '';
-                const hasColFilter = state.columnFilters && state.columnFilters[col.key];
+                const activeFilter = state.columnFilters && state.columnFilters[col.key];
+                const hasColFilter = activeFilter !== undefined && activeFilter !== null;
+
+                let filterDisplayVal = '';
+                if (hasColFilter) {
+                  if (typeof activeFilter === 'object') {
+                    if (activeFilter.min && activeFilter.max) filterDisplayVal = `${activeFilter.min}-${activeFilter.max}`;
+                    else if (activeFilter.min) filterDisplayVal = `>=${activeFilter.min}`;
+                    else if (activeFilter.max) filterDisplayVal = `<=${activeFilter.max}`;
+                  } else {
+                    filterDisplayVal = String(activeFilter);
+                  }
+                }
+
+                const isNumeric = col.type === 'number' || col.type === 'currency' || col.type === 'percent';
+                const placeholder = isNumeric ? 'e.g. >50, 10-50' : `Search ${col.label}...`;
 
                 return `
                   <th class="th-data ${isSorted ? 'th-sorted' : ''}" data-col="${col.key}">
-                    <div class="th-content">
+                    <!-- Line 1: Title and Sort Arrow -->
+                    <div class="th-top-row">
                       <span class="th-label" data-col="${col.key}" title="Click to sort by ${col.label}">
                         ${col.label} ${sortArrow ? `<span class="sort-icon">${sortArrow}</span>` : ''}
                       </span>
-                      <!-- Search button for every column -->
-                      <button type="button" class="btn-col-search ${hasColFilter ? 'filter-active' : ''}" data-col="${col.key}" title="Filter by ${col.label}">
-                        🔍${hasColFilter ? '•' : ''}
+                      <!-- Column Drag Resizer Handle -->
+                      <div class="col-resizer" data-col="${col.key}" title="Drag to resize column width"></div>
+                    </div>
+
+                    <!-- Line 2 (Newline): Inline Search Input & Search Button -->
+                    <div class="th-search-row">
+                      <input type="text"
+                             class="th-inline-search-input ${hasColFilter ? 'has-filter' : ''}"
+                             data-col="${col.key}"
+                             placeholder="${placeholder}"
+                             value="${escapeAttr(filterDisplayVal)}"
+                             title="${isNumeric ? 'Filter numeric values: e.g. >50, <100, 10-50, or exact number' : 'Search ' + col.label}"
+                             onclick="event.stopPropagation()" />
+                      <button type="button"
+                              class="btn-inline-search ${hasColFilter ? 'filter-active' : ''}"
+                              data-col="${col.key}"
+                              title="${hasColFilter ? 'Clear filter' : 'Search ' + col.label}"
+                              onclick="event.stopPropagation()">
+                        ${hasColFilter ? '✕' : '🔍'}
                       </button>
                     </div>
                   </th>
@@ -57,14 +108,14 @@ export function renderTable(containerEl, state, handlers) {
           <tbody id="table-body">
             ${state.isLoading ? `
               <tr>
-                <td colspan="${visibleCols.length + (isAuthenticated ? 2 : 1)}" class="td-loading">
+                <td colspan="${visibleCols.length + (isAuthenticated ? 3 : 2)}" class="td-loading">
                   <div class="loading-spinner"></div>
                   <span>Loading product catalog data...</span>
                 </td>
               </tr>
             ` : products.length === 0 ? `
               <tr>
-                <td colspan="${visibleCols.length + (isAuthenticated ? 2 : 1)}" class="td-empty">
+                <td colspan="${visibleCols.length + (isAuthenticated ? 3 : 2)}" class="td-empty">
                   <div class="empty-state-box">
                     <span class="empty-icon">📦</span>
                     <p class="empty-title">No wholesale products found</p>
@@ -75,10 +126,17 @@ export function renderTable(containerEl, state, handlers) {
             ` : products.map(product => {
               const isSelected = selectedIds.has(product.id);
               return `
-                <tr class="table-row ${isSelected ? 'row-selected' : ''}" data-id="${product.id}" title="Click row to view full product details">
+                <tr class="table-row ${isSelected ? 'row-selected' : ''}" data-id="${product.id}">
                   <!-- Row Checkbox -->
-                  <td class="td-checkbox" onclick="event.stopPropagation()">
+                  <td class="td-checkbox">
                     <input type="checkbox" class="row-checkbox" data-id="${product.id}" ${isSelected ? 'checked' : ''} />
+                  </td>
+
+                  <!-- Dedicated Details Column Button -->
+                  <td class="td-details-col">
+                    <button type="button" class="btn btn-xs btn-details" data-id="${product.id}" title="View all 67 fields for ${escapeAttr(product.asin || 'product')}">
+                      ℹ Details
+                    </button>
                   </td>
 
                   <!-- Dynamic Data Cells -->
@@ -90,7 +148,7 @@ export function renderTable(containerEl, state, handlers) {
 
                   <!-- Actions Column (Only visible when logged in) -->
                   ${isAuthenticated ? `
-                    <td class="td-actions" onclick="event.stopPropagation()">
+                    <td class="td-actions">
                       <div class="action-btn-group">
                         <button type="button" class="btn btn-xs btn-outline btn-edit" data-id="${product.id}" title="Edit product">
                           ✎ Edit
@@ -108,13 +166,13 @@ export function renderTable(containerEl, state, handlers) {
         </table>
       </div>
 
-      <!-- Pagination Bar -->
+      <!-- Pagination Bar (Always anchored at bottom of card) -->
       <div class="table-pagination">
         <div class="pagination-info">
           Showing <strong>${products.length > 0 ? (state.page - 1) * state.limit + 1 : 0}</strong>
           to <strong>${Math.min(state.page * state.limit, state.total)}</strong>
           of <strong>${state.total.toLocaleString()}</strong> items
-          ${selectedIds.size > 0 ? `&bull; <span class="badge badge-info">${selectedIds.size} checked</span>` : ''}
+          ${selectedIds.size > 0 ? `&bull; <span class="badge badge-info">${selectedIds.size} checked for download</span>` : ''}
         </div>
 
         <div class="pagination-controls">
@@ -132,7 +190,38 @@ export function renderTable(containerEl, state, handlers) {
 }
 
 function bindTableEvents(containerEl, state, handlers, products) {
-  // Master checkbox indeterminate state
+  const scrollContainer = containerEl.querySelector('#table-scroll-container');
+
+  // Quick scroll buttons
+  const btnScrollLeft = containerEl.querySelector('#btn-scroll-left');
+  const btnScrollRight = containerEl.querySelector('#btn-scroll-right');
+  const btnScrollTop = containerEl.querySelector('#btn-scroll-top');
+  const btnScrollBottom = containerEl.querySelector('#btn-scroll-bottom');
+
+  if (scrollContainer) {
+    if (btnScrollLeft) {
+      btnScrollLeft.addEventListener('click', () => {
+        scrollContainer.scrollBy({ left: -350, behavior: 'smooth' });
+      });
+    }
+    if (btnScrollRight) {
+      btnScrollRight.addEventListener('click', () => {
+        scrollContainer.scrollBy({ left: 350, behavior: 'smooth' });
+      });
+    }
+    if (btnScrollTop) {
+      btnScrollTop.addEventListener('click', () => {
+        scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+    if (btnScrollBottom) {
+      btnScrollBottom.addEventListener('click', () => {
+        scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
+      });
+    }
+  }
+
+  // Master checkbox selection
   const thSelectAll = containerEl.querySelector('#th-select-all');
   if (thSelectAll) {
     const selectedIds = state.selectedIds || new Set();
@@ -157,26 +246,14 @@ function bindTableEvents(containerEl, state, handlers, products) {
   containerEl.querySelectorAll('.th-label').forEach(th => {
     th.addEventListener('click', () => {
       const colKey = th.dataset.col;
-      handlers.onSortChanged(colKey);
+      if (colKey) handlers.onSortChanged(colKey);
     });
   });
 
-  // Search button for every column
-  containerEl.querySelectorAll('.btn-col-search').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const colKey = btn.dataset.col;
-      const currentVal = state.columnFilters ? state.columnFilters[colKey] : null;
-      openColumnSearchModal(colKey, currentVal, (appliedColKey, filterValue) => {
-        handlers.onColumnFilterChanged(appliedColKey, filterValue);
-      });
-    });
-  });
-
-  // Click row to view details modal
-  containerEl.querySelectorAll('.table-row').forEach(row => {
-    row.addEventListener('click', () => {
-      const id = parseInt(row.dataset.id, 10);
+  // Dedicated Details button click
+  containerEl.querySelectorAll('.btn-details').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.id, 10);
       const product = products.find(p => p.id === id);
       if (product) {
         openDetailsModal(product);
@@ -184,10 +261,9 @@ function bindTableEvents(containerEl, state, handlers, products) {
     });
   });
 
-  // Edit button in actions
+  // Edit button click
   containerEl.querySelectorAll('.btn-edit').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
+    btn.addEventListener('click', () => {
       const id = parseInt(btn.dataset.id, 10);
       const product = products.find(p => p.id === id);
       if (product) {
@@ -196,10 +272,9 @@ function bindTableEvents(containerEl, state, handlers, products) {
     });
   });
 
-  // Delete button in actions
+  // Delete button click
   containerEl.querySelectorAll('.btn-delete').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
+    btn.addEventListener('click', async () => {
       const id = parseInt(btn.dataset.id, 10);
       const product = products.find(p => p.id === id);
       const asin = product ? product.asin : `ID ${id}`;
@@ -220,7 +295,97 @@ function bindTableEvents(containerEl, state, handlers, products) {
     });
   });
 
-  // Pagination buttons
+  // Inline Search Inputs & Search/Clear Buttons in Headers
+  containerEl.querySelectorAll('.th-inline-search-input').forEach(input => {
+    const colKey = input.dataset.col;
+
+    const applyInlineFilter = () => {
+      const val = input.value.trim();
+      const col = COLUMN_MAP.get(colKey);
+      const isNumeric = col && (col.type === 'number' || col.type === 'currency' || col.type === 'percent');
+
+      if (!val) {
+        handlers.onColumnFilterChanged(colKey, null);
+        return;
+      }
+
+      if (isNumeric) {
+        // Range syntax: 10-50
+        if (val.includes('-') && !val.startsWith('-')) {
+          const parts = val.split('-');
+          const min = parseFloat(parts[0]);
+          const max = parseFloat(parts[1]);
+          handlers.onColumnFilterChanged(colKey, { min: !isNaN(min) ? min : '', max: !isNaN(max) ? max : '' });
+          return;
+        }
+        // Greater than: >50 or >=50
+        if (val.startsWith('>')) {
+          const num = parseFloat(val.replace(/[>=]/g, ''));
+          handlers.onColumnFilterChanged(colKey, { min: !isNaN(num) ? num : '' });
+          return;
+        }
+        // Less than: <50 or <=50
+        if (val.startsWith('<')) {
+          const num = parseFloat(val.replace(/[<=]/g, ''));
+          handlers.onColumnFilterChanged(colKey, { max: !isNaN(num) ? num : '' });
+          return;
+        }
+      }
+
+      handlers.onColumnFilterChanged(colKey, val);
+    };
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        applyInlineFilter();
+      }
+    });
+
+    const searchBtn = containerEl.querySelector(`.btn-inline-search[data-col="${colKey}"]`);
+    if (searchBtn) {
+      searchBtn.addEventListener('click', () => {
+        const hasColFilter = state.columnFilters && state.columnFilters[colKey] !== undefined;
+        if (hasColFilter) {
+          // Clear active filter
+          input.value = '';
+          handlers.onColumnFilterChanged(colKey, null);
+        } else {
+          applyInlineFilter();
+        }
+      });
+    }
+  });
+
+  // Draggable Column Resizers
+  containerEl.querySelectorAll('.col-resizer').forEach(resizer => {
+    resizer.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const th = resizer.closest('th');
+      const startX = e.pageX;
+      const startWidth = th.offsetWidth;
+      resizer.classList.add('resizing');
+
+      const onMouseMove = (moveEvent) => {
+        const diff = moveEvent.pageX - startX;
+        const newWidth = Math.max(90, startWidth + diff);
+        th.style.width = `${newWidth}px`;
+        th.style.minWidth = `${newWidth}px`;
+      };
+
+      const onMouseUp = () => {
+        resizer.classList.remove('resizing');
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+  });
+
+  // Pagination Controls
   const pgFirst = containerEl.querySelector('#pg-first');
   const pgPrev = containerEl.querySelector('#pg-prev');
   const pgNext = containerEl.querySelector('#pg-next');
@@ -230,4 +395,9 @@ function bindTableEvents(containerEl, state, handlers, products) {
   if (pgPrev) pgPrev.addEventListener('click', () => handlers.onPageChanged(state.page - 1));
   if (pgNext) pgNext.addEventListener('click', () => handlers.onPageChanged(state.page + 1));
   if (pgLast) pgLast.addEventListener('click', () => handlers.onPageChanged(state.totalPages));
+}
+
+function escapeAttr(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/"/g, '&quot;');
 }
