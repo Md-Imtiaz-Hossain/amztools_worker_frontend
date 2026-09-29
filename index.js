@@ -186,7 +186,7 @@ function renderView() {
 }
 
 // App Initialization
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
   toolbarContainer = document.getElementById('toolbar-container');
   tableContainer = document.getElementById('table-container');
 
@@ -200,4 +200,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   loadData();
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}

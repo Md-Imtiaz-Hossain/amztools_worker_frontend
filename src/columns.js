@@ -94,6 +94,10 @@ export const ALL_COLUMNS = [
   { key: 'updated_at', label: 'Updated At', type: 'date', category: 'System', defaultVisible: false, sortable: true }
 ];
 
+export const NUMERIC_COLUMNS = ALL_COLUMNS
+  .filter(c => c.type === 'number' || c.type === 'currency' || c.type === 'percent')
+  .map(c => c.key);
+
 export const COLUMN_MAP = new Map(ALL_COLUMNS.map(c => [c.key, c]));
 
 /**

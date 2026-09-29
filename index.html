@@ -8,8 +8,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    // Global error listener to prevent silent white screen if any network or syntax issue occurs
+    window.addEventListener('error', function(e) {
+      console.error('Frontend Error:', e);
+      var errEl = document.getElementById('global-error-boundary');
+      if (errEl) {
+        errEl.style.display = 'block';
+        errEl.innerHTML = '<strong>Application Error:</strong> ' + (e.message || (e.error && e.error.message) || 'Error loading application scripts') + '<br><small>Check the browser console (F12) for more details.</small>';
+      }
+    });
+  </script>
 </head>
 <body>
+  <!-- Global Error Banner (Hidden by default, shown if an uncaught exception occurs) -->
+  <div id="global-error-boundary" style="display: none; background: #fee2e2; color: #dc2626; padding: 12px 18px; border-bottom: 2px solid #ef4444; font-size: 13px;"></div>
+
   <!-- App Top Navigation Bar -->
   <div id="navbar-container"></div>
 
@@ -19,7 +33,12 @@
     <div id="toolbar-container"></div>
 
     <!-- Data Table & Pagination -->
-    <div id="table-container"></div>
+    <div id="table-container">
+      <div style="padding: 60px 20px; text-align: center; color: #64748b; font-family: sans-serif;">
+        <div class="loading-spinner"></div>
+        <p style="margin-top: 10px; font-weight: 500;">Loading AMZ Tools Application...</p>
+      </div>
+    </div>
   </main>
 
   <!-- Global Toast Alerts Container -->
