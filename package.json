@@ -1,0 +1,12 @@
+{
+  "name": "amztools_worker_frontend",
+  "version": "1.0.0",
+  "description": "AMZ Tools Wholesale Product Analysis Single Page Application",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 3000",
+    "start": "python3 -m http.server 3000"
+  },
+  "private": true
+}
