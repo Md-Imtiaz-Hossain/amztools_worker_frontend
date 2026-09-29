@@ -16,8 +16,12 @@ export function formatCurrency(val) {
 
 export function formatPercent(val) {
   if (val === null || val === undefined || val === '') return '-';
-  const num = Number(val);
+  let num = Number(val);
   if (isNaN(num)) return '-';
+  // If decimal fraction (e.g. 0.7282), display as 72.8%
+  if (Math.abs(num) > 0 && Math.abs(num) <= 1) {
+    num = num * 100;
+  }
   return `${num.toFixed(1)}%`;
 }
 
@@ -43,6 +47,15 @@ export function formatDate(val) {
   } catch (e) {
     return String(val);
   }
+}
+
+export function extractUrl(str) {
+  if (!str) return '';
+  const s = String(str).trim();
+  // Extract URL from =HYPERLINK("https://...", "...")
+  const match = s.match(/=HYPERLINK\("([^"]+)"/i);
+  if (match && match[1]) return match[1];
+  return s;
 }
 
 export function escapeHtml(str) {

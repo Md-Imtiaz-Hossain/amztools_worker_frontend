@@ -1,4 +1,4 @@
-import { formatCurrency, formatPercent, formatNumber, formatDate, escapeHtml } from '../utils/formatters.js';
+import { formatCurrency, formatPercent, formatNumber, formatDate, escapeHtml, extractUrl } from '../utils/formatters.js';
 import { showToast } from '../utils/toast.js';
 
 let modalEl = null;
@@ -304,21 +304,25 @@ function populateDetails(p) {
   modalEl.querySelector('#det-c-review-summary').textContent = p.customer_reviews || 'No customer reviews available.';
 
   // Links
-  const amazonUrl = p.amazon_link || (p.asin ? `https://www.amazon.com/dp/${p.asin}` : '#');
+  const rawAmazon = extractUrl(p.amazon_link);
+  const amazonUrl = rawAmazon || (p.asin ? `https://www.amazon.com/dp/${p.asin}` : '#');
   const extAmazon = modalEl.querySelector('#ext-amazon-btn');
   extAmazon.href = amazonUrl;
   modalEl.querySelector('#ext-amazon-url').textContent = amazonUrl;
 
-  const keepaUrl = p.keepa || (p.asin ? `https://keepa.com/#!product/1-${p.asin}` : '#');
+  const rawKeepa = extractUrl(p.keepa);
+  const keepaUrl = rawKeepa || (p.asin ? `https://keepa.com/#!product/1-${p.asin}` : '#');
   modalEl.querySelector('#ext-keepa-btn').href = keepaUrl;
 
-  const camelUrl = p.camelcc || (p.asin ? `https://camelcamelcamel.com/product/${p.asin}` : '#');
+  const rawCamel = extractUrl(p.camelcc);
+  const camelUrl = rawCamel || (p.asin ? `https://camelcamelcamel.com/search?sq=${p.asin}` : '#');
   modalEl.querySelector('#ext-camel-btn').href = camelUrl;
 
   modalEl.querySelector('#det-r-brand').textContent = p.brand_restriction || 'None';
   modalEl.querySelector('#det-r-selling').textContent = p.selling_restriction || 'None';
-  modalEl.querySelector('#det-r-link').innerHTML = p.selling_restriction_link
-    ? `<a href="${escapeHtml(p.selling_restriction_link)}" target="_blank" rel="noopener">Check Restriction Link ↗</a>`
+  const restrictionUrl = extractUrl(p.selling_restriction_link);
+  modalEl.querySelector('#det-r-link').innerHTML = restrictionUrl
+    ? `<a href="${escapeHtml(restrictionUrl)}" target="_blank" rel="noopener">Check Restriction Link ↗</a>`
     : 'None';
 
   modalEl.querySelector('#det-notes').textContent = p.custom_notes || 'No custom notes.';

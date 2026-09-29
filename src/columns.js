@@ -1,5 +1,5 @@
 import { STORAGE_KEYS } from './config.js';
-import { formatCurrency, formatPercent, formatNumber, formatDate, truncate, escapeHtml } from './utils/formatters.js';
+import { formatCurrency, formatPercent, formatNumber, formatDate, truncate, escapeHtml, extractUrl } from './utils/formatters.js';
 
 export const ALL_COLUMNS = [
   // Basic & Identity
@@ -168,7 +168,7 @@ export function renderCellContent(col, value, row) {
       return `<span class="date-cell" title="${escapeHtml(value)}">${formatDate(value)}</span>`;
     }
     case 'link': {
-      const url = String(value);
+      const url = extractUrl(value);
       return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="tbl-link" onclick="event.stopPropagation()">Link ↗</a>`;
     }
     case 'image': {

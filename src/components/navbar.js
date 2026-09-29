@@ -61,8 +61,8 @@ function renderNavHtml() {
         <div class="modal-body">
           <div class="form-group">
             <label for="cfg-api-url">Worker API Base URL</label>
-            <input type="url" id="cfg-api-url" class="form-control" value="${apiUrl}" placeholder="http://127.0.0.1:8787" />
-            <small class="form-text">Default local: <code>http://127.0.0.1:8787</code> or production worker URL</small>
+            <input type="url" id="cfg-api-url" class="form-control" value="${apiUrl}" placeholder="https://amztools-worker-backend.imtiaz15-11790.workers.dev" />
+            <small class="form-text">Production: <code>https://amztools-worker-backend.imtiaz15-11790.workers.dev</code> | Local: <code>http://127.0.0.1:8787</code></small>
           </div>
           <div class="modal-tool-actions">
             <button type="button" class="btn btn-xs btn-outline" id="btn-test-connection">Test Connection</button>
