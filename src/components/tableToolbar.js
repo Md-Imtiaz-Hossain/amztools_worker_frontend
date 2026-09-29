@@ -40,13 +40,14 @@ export function renderToolbar(containerEl, state, handlers) {
       </div>
 
       <div class="toolbar-right">
-        <!-- Page size selector: 50, 100, 150 -->
+        <!-- Page size selector: 20, 25, 50, 100 -->
         <div class="per-page-selector">
-          <label for="select-page-size">Show:</label>
-          <select id="select-page-size" class="form-select form-select-sm">
+          <label for="select-page-size">Per Page:</label>
+          <select id="select-page-size" class="form-select form-select-sm" title="Items per page (max 100)">
+            <option value="20" ${state.limit === 20 ? 'selected' : ''}>20</option>
+            <option value="25" ${state.limit === 25 ? 'selected' : ''}>25</option>
             <option value="50" ${state.limit === 50 ? 'selected' : ''}>50</option>
             <option value="100" ${state.limit === 100 ? 'selected' : ''}>100</option>
-            <option value="150" ${state.limit === 150 ? 'selected' : ''}>150</option>
           </select>
         </div>
 

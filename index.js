@@ -7,12 +7,13 @@ import { getVisibleColumnKeys, setVisibleColumnKeys } from './src/columns.js';
 import { Api } from './src/api.js';
 import { subscribeAuth } from './src/auth.js';
 import { showToast } from './src/utils/toast.js';
+import { getSavedPageSize, setSavedPageSize } from './src/config.js';
 
 // Central Application State
 const state = {
   products: [],
   page: 1,
-  limit: 50, // Default 50 items per page (supports 50, 100, 150)
+  limit: getSavedPageSize(), // Default 20 items per page (persisted in localStorage, max 100)
   total: 0,
   totalPages: 1,
   sortBy: 'id',
@@ -43,6 +44,7 @@ async function loadData() {
   };
 
   if (state.globalSearch) {
+    queryParams.search = state.globalSearch;
     queryParams.q = state.globalSearch;
   }
 
@@ -76,16 +78,30 @@ async function loadData() {
       if (res.pagination) {
         state.page = res.pagination.page;
         state.limit = res.pagination.limit;
-        state.total = res.pagination.total;
-        state.totalPages = res.pagination.totalPages;
+        state.total = res.pagination.totalItems !== undefined ? res.pagination.totalItems : (res.pagination.total || 0);
+        state.totalPages = Math.max(1, res.pagination.totalPages || Math.ceil(state.total / state.limit) || 1);
+      } else {
+        state.total = state.products.length;
+        state.totalPages = Math.max(1, Math.ceil(state.total / state.limit) || 1);
+      }
+
+      // Check if page requested is beyond totalPages (e.g. after search filter narrowed results)
+      if (state.page > state.totalPages && state.totalPages > 0) {
+        state.page = state.totalPages;
+        loadData();
+        return;
       }
     } else {
       state.products = [];
+      state.total = 0;
+      state.totalPages = 1;
       const err = (res && res.error) || 'Failed to fetch products';
       showToast(err, 'error');
     }
   } catch (err) {
     state.products = [];
+    state.total = 0;
+    state.totalPages = 1;
     showToast('Failed to connect to backend API', 'error');
   } finally {
     state.isLoading = false;
@@ -96,14 +112,21 @@ async function loadData() {
 function renderView() {
   const handlers = {
     onPageSizeChanged(newLimit) {
-      state.limit = newLimit;
+      const sanitized = Math.min(100, Math.max(1, parseInt(newLimit, 10) || 20));
+      state.limit = sanitized;
+      setSavedPageSize(sanitized);
       state.page = 1;
       loadData();
     },
     onPageChanged(newPage) {
-      if (newPage >= 1 && newPage <= state.totalPages) {
-        state.page = newPage;
+      const pageNum = parseInt(newPage, 10);
+      if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= state.totalPages && pageNum !== state.page) {
+        state.page = pageNum;
         loadData();
+        const scrollContainer = document.getElementById('table-scroll-container');
+        if (scrollContainer) {
+          scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       }
     },
     onSearchChanged(query) {

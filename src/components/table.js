@@ -5,6 +5,31 @@ import { openEditModal } from './createEditModal.js';
 import { Api } from '../api.js';
 import { showToast } from '../utils/toast.js';
 
+function getPageNumbers(currentPage, totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const pages = [1];
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+
+  if (start > 2) {
+    pages.push('...');
+  }
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+
+  if (end < totalPages - 1) {
+    pages.push('...');
+  }
+
+  pages.push(totalPages);
+  return pages;
+}
+
 export function renderTable(containerEl, state, handlers) {
   const { isAuthenticated } = getAuthStatus();
   const visibleCols = state.visibleColumns.map(key => COLUMN_MAP.get(key)).filter(Boolean);
@@ -13,6 +38,12 @@ export function renderTable(containerEl, state, handlers) {
 
   const allPageSelected = products.length > 0 && products.every(p => selectedIds.has(p.id));
   const somePageSelected = products.some(p => selectedIds.has(p.id)) && !allPageSelected;
+
+  const totalItems = state.total || 0;
+  const totalPages = Math.max(1, state.totalPages || 1);
+  const startItem = products.length > 0 ? (state.page - 1) * state.limit + 1 : 0;
+  const endItem = products.length > 0 ? (state.page - 1) * state.limit + products.length : 0;
+  const pageNumbers = getPageNumbers(state.page, totalPages);
 
   containerEl.innerHTML = `
     <div class="table-card">
@@ -169,18 +200,51 @@ export function renderTable(containerEl, state, handlers) {
       <!-- Pagination Bar (Always anchored at bottom of card) -->
       <div class="table-pagination">
         <div class="pagination-info">
-          Showing <strong>${products.length > 0 ? (state.page - 1) * state.limit + 1 : 0}</strong>
-          to <strong>${Math.min(state.page * state.limit, state.total)}</strong>
-          of <strong>${state.total.toLocaleString()}</strong> items
-          ${selectedIds.size > 0 ? `&bull; <span class="badge badge-info">${selectedIds.size} checked for download</span>` : ''}
+          Showing <strong>${startItem.toLocaleString()}</strong> to <strong>${endItem.toLocaleString()}</strong> of <strong>${totalItems.toLocaleString()}</strong> items
+          ${selectedIds.size > 0 ? `&bull; <span class="badge badge-info">${selectedIds.size} checked</span>` : ''}
         </div>
 
-        <div class="pagination-controls">
-          <button type="button" class="btn btn-xs btn-outline" id="pg-first" ${state.page <= 1 ? 'disabled' : ''}>⏮ First</button>
-          <button type="button" class="btn btn-xs btn-outline" id="pg-prev" ${state.page <= 1 ? 'disabled' : ''}>◀ Prev</button>
-          <span class="pagination-page-indicator">Page ${state.page} of ${state.totalPages || 1}</span>
-          <button type="button" class="btn btn-xs btn-outline" id="pg-next" ${state.page >= state.totalPages ? 'disabled' : ''}>Next ▶</button>
-          <button type="button" class="btn btn-xs btn-outline" id="pg-last" ${state.page >= state.totalPages ? 'disabled' : ''}>Last ⏭</button>
+        <div class="pagination-center">
+          <div class="pagination-controls">
+            <button type="button" class="btn btn-xs btn-outline pg-nav-btn" id="pg-first" ${state.page <= 1 ? 'disabled' : ''} title="Go to First Page (1)">⏮ First</button>
+            <button type="button" class="btn btn-xs btn-outline pg-nav-btn" id="pg-prev" ${state.page <= 1 ? 'disabled' : ''} title="Go to Previous Page">◀ Prev</button>
+            
+            <div class="pagination-numbers">
+              ${pageNumbers.map(p => {
+                if (p === '...') {
+                  return `<span class="pagination-ellipsis">&hellip;</span>`;
+                }
+                const isActive = p === state.page;
+                return `
+                  <button type="button" class="btn-page ${isActive ? 'btn-page-active' : ''}" data-page="${p}" ${isActive ? 'disabled aria-current="page"' : ''} title="Page ${p}">
+                    ${p}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+
+            <button type="button" class="btn btn-xs btn-outline pg-nav-btn" id="pg-next" ${state.page >= totalPages ? 'disabled' : ''} title="Go to Next Page">Next ▶</button>
+            <button type="button" class="btn btn-xs btn-outline pg-nav-btn" id="pg-last" ${state.page >= totalPages ? 'disabled' : ''} title="Go to Last Page (${totalPages})">Last ⏭</button>
+          </div>
+        </div>
+
+        <div class="pagination-right">
+          <!-- Quick Page Jump -->
+          <div class="pagination-jump-group">
+            <label for="pg-jump-input">Go to:</label>
+            <input type="number" id="pg-jump-input" class="pagination-jump-input" min="1" max="${totalPages}" value="${state.page}" title="Enter page number (1-${totalPages}) and press Enter" />
+            <button type="button" class="btn btn-xs btn-outline" id="pg-jump-btn" title="Jump to page">Go</button>
+          </div>
+
+          <!-- Bottom Per-Page Selector (Synced with toolbar) -->
+          <div class="pagination-per-page">
+            <select id="pg-bottom-limit" class="form-select form-select-xs" title="Items per page (max 100)">
+              <option value="20" ${state.limit === 20 ? 'selected' : ''}>20 / page</option>
+              <option value="25" ${state.limit === 25 ? 'selected' : ''}>25 / page</option>
+              <option value="50" ${state.limit === 50 ? 'selected' : ''}>50 / page</option>
+              <option value="100" ${state.limit === 100 ? 'selected' : ''}>100 / page</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
@@ -385,7 +449,7 @@ function bindTableEvents(containerEl, state, handlers, products) {
     });
   });
 
-  // Pagination Controls
+  // Pagination Controls: First, Prev, Next, Last
   const pgFirst = containerEl.querySelector('#pg-first');
   const pgPrev = containerEl.querySelector('#pg-prev');
   const pgNext = containerEl.querySelector('#pg-next');
@@ -395,6 +459,41 @@ function bindTableEvents(containerEl, state, handlers, products) {
   if (pgPrev) pgPrev.addEventListener('click', () => handlers.onPageChanged(state.page - 1));
   if (pgNext) pgNext.addEventListener('click', () => handlers.onPageChanged(state.page + 1));
   if (pgLast) pgLast.addEventListener('click', () => handlers.onPageChanged(state.totalPages));
+
+  // Direct Page Number buttons
+  containerEl.querySelectorAll('.btn-page:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = parseInt(btn.dataset.page, 10);
+      if (!isNaN(p)) handlers.onPageChanged(p);
+    });
+  });
+
+  // Jump to Page Input & Button
+  const jumpInput = containerEl.querySelector('#pg-jump-input');
+  const jumpBtn = containerEl.querySelector('#pg-jump-btn');
+  const triggerJump = () => {
+    if (!jumpInput) return;
+    const target = parseInt(jumpInput.value, 10);
+    if (!isNaN(target)) {
+      const clamped = Math.max(1, Math.min(state.totalPages, target));
+      handlers.onPageChanged(clamped);
+    }
+  };
+
+  if (jumpBtn) jumpBtn.addEventListener('click', triggerJump);
+  if (jumpInput) {
+    jumpInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') triggerJump();
+    });
+  }
+
+  // Bottom Per-Page Limit Selector (Synced with toolbar)
+  const bottomLimitSelect = containerEl.querySelector('#pg-bottom-limit');
+  if (bottomLimitSelect) {
+    bottomLimitSelect.addEventListener('change', (e) => {
+      handlers.onPageSizeChanged(parseInt(e.target.value, 10));
+    });
+  }
 }
 
 function escapeAttr(str) {

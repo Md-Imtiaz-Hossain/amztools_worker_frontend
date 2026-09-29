@@ -72,4 +72,23 @@ export function setApiBaseUrl(url) {
   return sanitized;
 }
 
+export function getSavedPageSize() {
+  if (typeof localStorage !== 'undefined') {
+    const saved = parseInt(localStorage.getItem(STORAGE_KEYS.PAGE_SIZE), 10);
+    if (!isNaN(saved) && saved >= 1 && saved <= 100) {
+      return saved;
+    }
+  }
+  return 20; // Default 20 per page matching backend
+}
+
+export function setSavedPageSize(limit) {
+  if (typeof localStorage !== 'undefined') {
+    const val = parseInt(limit, 10);
+    if (!isNaN(val) && val >= 1 && val <= 100) {
+      localStorage.setItem(STORAGE_KEYS.PAGE_SIZE, String(val));
+    }
+  }
+}
+
 export { STORAGE_KEYS };

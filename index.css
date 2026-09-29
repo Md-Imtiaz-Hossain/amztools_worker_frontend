@@ -919,16 +919,121 @@ body {
   gap: 10px;
 }
 
+.pagination-info {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.pagination-center {
+  display: flex;
+  align-items: center;
+}
+
 .pagination-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
-.pagination-page-indicator {
-  font-weight: 600;
+.pg-nav-btn {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  height: 28px;
+}
+
+.pagination-numbers {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin: 0 4px;
+}
+
+.btn-page {
+  min-width: 28px;
+  height: 28px;
   padding: 0 6px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: #ffffff;
   color: var(--text-main);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.btn-page:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-page-active {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.25);
+  pointer-events: none;
+}
+
+.pagination-ellipsis {
+  padding: 0 4px;
+  color: var(--text-muted);
+  font-weight: 600;
+  user-select: none;
+}
+
+.pagination-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pagination-jump-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pagination-jump-input {
+  width: 52px;
+  height: 28px;
+  padding: 2px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.pagination-jump-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.pagination-per-page {
+  display: flex;
+  align-items: center;
+}
+
+.form-select-xs {
+  height: 28px;
+  padding: 2px 22px 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  background-color: #ffffff;
 }
 
 /* ==========================================================================
@@ -1756,13 +1861,31 @@ body {
 
   .table-pagination {
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
     text-align: center;
+    gap: 12px;
+  }
+
+  .pagination-info {
+    text-align: center;
+    white-space: normal;
+  }
+
+  .pagination-center {
+    width: 100%;
+    justify-content: center;
   }
 
   .pagination-controls {
     justify-content: center;
     flex-wrap: wrap;
+  }
+
+  .pagination-right {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
   }
 }
 
