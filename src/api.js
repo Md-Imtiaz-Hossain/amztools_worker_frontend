@@ -1,6 +1,8 @@
-import { getApiBaseUrl } from './config.js';
+import { getApiBaseUrl, setApiBaseUrl, PRODUCTION_BACKEND_URL } from './config.js';
 import { getAuthStatus, clearSession } from './auth.js';
 import { showToast } from './utils/toast.js';
+
+let isFailingOver = false;
 
 async function request(endpoint, options = {}) {
   const baseUrl = getApiBaseUrl();
@@ -39,6 +41,27 @@ async function request(endpoint, options = {}) {
 
     return data || { success: true };
   } catch (err) {
+    // If local backend is unreachable (offline / connection refused), auto-fallback to live Cloudflare backend
+    if (!isFailingOver && (baseUrl.includes('127.0.0.1') || baseUrl.includes('localhost')) && baseUrl !== PRODUCTION_BACKEND_URL) {
+      console.warn(`Local backend at ${baseUrl} is unreachable. Auto-falling back to live Cloudflare backend: ${PRODUCTION_BACKEND_URL}`);
+      isFailingOver = true;
+      try {
+        setApiBaseUrl(PRODUCTION_BACKEND_URL);
+        const fallbackUrl = `${PRODUCTION_BACKEND_URL}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+        const fallbackResp = await fetch(fallbackUrl, { ...options, headers });
+        const fallbackData = await fallbackResp.json().catch(() => null);
+        if (fallbackResp.ok) {
+          showToast('Local backend is offline. Connected to Live Cloudflare Backend.', 'info');
+          isFailingOver = false;
+          return fallbackData || { success: true };
+        }
+      } catch (fallbackErr) {
+        console.error('Production fallback also failed:', fallbackErr);
+      } finally {
+        isFailingOver = false;
+      }
+    }
+
     console.error(`API request error on ${url}:`, err);
     return {
       success: false,
@@ -115,6 +138,12 @@ export const Api = {
 
   async initTable() {
     return await request('/api/products/init-table', {
+      method: 'POST'
+    });
+  },
+
+  async seedData() {
+    return await request('/api/products/seed', {
       method: 'POST'
     });
   }

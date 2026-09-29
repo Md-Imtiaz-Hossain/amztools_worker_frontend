@@ -5,9 +5,11 @@
   "main": "worker.js",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --port 3000",
-    "serve": "python3 -m http.server 3000",
-    "start": "wrangler dev --port 3000",
+    "dev": "node dev-server.js",
+    "serve": "node dev-server.js",
+    "serve:python": "python3 -m http.server 3000",
+    "serve:wrangler": "wrangler dev --port 3000",
+    "start": "node dev-server.js",
     "deploy": "wrangler deploy"
   },
   "private": true

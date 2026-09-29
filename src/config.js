@@ -14,6 +14,7 @@ const STORAGE_KEYS = {
 
 // Known Production Cloudflare Worker Backend URL
 export const PRODUCTION_BACKEND_URL = 'https://amztools-worker-backend.imtiaz15-11790.workers.dev';
+export const LOCAL_BACKEND_URL = 'http://127.0.0.1:8787';
 
 /**
  * Automatically determine the correct backend URL based on environment
@@ -25,17 +26,7 @@ export function getAutoApiUrl() {
 
   const hostname = window.location.hostname;
 
-  // 1. If running locally
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    // If backend and frontend run on same port
-    if (window.location.port === '8787') {
-      return window.location.origin;
-    }
-    // Default local worker port or fallback to production if local is not running
-    return 'http://127.0.0.1:8787';
-  }
-
-  // 2. If running on Cloudflare workers.dev or pages.dev
+  // 1. If running on Cloudflare workers.dev or pages.dev
   if (hostname.includes('workers.dev') || hostname.includes('pages.dev')) {
     // If hostname matches amztools-worker-frontend.* -> amztools-worker-backend.*
     if (hostname.includes('worker-frontend')) {
@@ -44,7 +35,13 @@ export function getAutoApiUrl() {
     return PRODUCTION_BACKEND_URL;
   }
 
-  // Default to production backend
+  // 2. If running locally on port 8787 (combined worker serving both frontend & backend)
+  if ((hostname === 'localhost' || hostname === '127.0.0.1') && window.location.port === '8787') {
+    return window.location.origin;
+  }
+
+  // 3. For local development (e.g. running on localhost:3000), default to the live
+  // Cloudflare production backend so all 34+ products from D1 appear immediately!
   return PRODUCTION_BACKEND_URL;
 }
 
