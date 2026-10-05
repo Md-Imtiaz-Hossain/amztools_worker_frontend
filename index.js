@@ -91,6 +91,10 @@ async function loadData() {
         loadData();
         return;
       }
+
+      if (res.fallbackFromDbError) {
+        showToast('⚠️ Live DB unreachable. Loaded Demo Data so you can continue testing.', 'warning');
+      }
     } else {
       state.products = [];
       state.total = 0;
@@ -99,10 +103,13 @@ async function loadData() {
       showToast(err, 'error');
     }
   } catch (err) {
-    state.products = [];
-    state.total = 0;
-    state.totalPages = 1;
-    showToast('Failed to connect to backend API', 'error');
+    // If anything fails unexpectedly, ensure demo data is shown so user can test
+    const { queryDemoProducts } = await import('./src/demoData.js');
+    const fallback = queryDemoProducts(queryParams);
+    state.products = fallback.data || [];
+    state.total = fallback.pagination.totalItems;
+    state.totalPages = fallback.pagination.totalPages;
+    showToast('⚠️ DB connection failed. Showing Demo Data for testing.', 'warning');
   } finally {
     state.isLoading = false;
     renderView();

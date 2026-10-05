@@ -1,6 +1,7 @@
-import { getApiBaseUrl, setApiBaseUrl, PRODUCTION_BACKEND_URL } from './config.js';
+import { getApiBaseUrl, setApiBaseUrl, PRODUCTION_BACKEND_URL, LOCAL_BACKEND_URL, isDemoMode, setDemoMode } from './config.js';
 import { getAuthStatus, clearSession } from './auth.js';
 import { showToast } from './utils/toast.js';
+import { DEMO_PRODUCTS, queryDemoProducts } from './demoData.js';
 
 let isFailingOver = false;
 
@@ -94,6 +95,20 @@ export const Api = {
 
   // Products
   async fetchProducts(params = {}) {
+    // 1. If explicit Demo Mode is selected
+    if (isDemoMode()) {
+      try {
+        const res = await this.fetchDemoProducts(params);
+        if (res && res.success && Array.isArray(res.data)) {
+          return res;
+        }
+      } catch (e) {
+        // Fall back to client in-memory demo data
+      }
+      return queryDemoProducts(params);
+    }
+
+    // 2. Normal Live DB connection
     const searchParams = new URLSearchParams();
     for (const [key, val] of Object.entries(params)) {
       if (val !== undefined && val !== null && String(val).trim() !== '') {
@@ -102,11 +117,44 @@ export const Api = {
     }
     const queryStr = searchParams.toString();
     const endpoint = `/api/products${queryStr ? '?' + queryStr : ''}`;
-    return await request(endpoint, { method: 'GET' });
+    const res = await request(endpoint, { method: 'GET' });
+
+    // If query succeeded and returned products from DB
+    if (res && res.success && Array.isArray(res.data)) {
+      return res;
+    }
+
+    // 3. Fallback when DB connection fails:
+    // "even if the db connection is fail for some reason user can test using demo data"
+    console.warn('DB connection query failed or returned error. Falling back to demo data for frontend testing:', (res && res.error) || res);
+
+    try {
+      const demoRes = await this.fetchDemoProducts(params);
+      if (demoRes && demoRes.success && Array.isArray(demoRes.data)) {
+        demoRes.fallbackFromDbError = (res && res.error) || 'Live DB query failed';
+        return demoRes;
+      }
+    } catch (e) {
+      // Backend unreachable
+    }
+
+    const localDemo = queryDemoProducts(params);
+    localDemo.fallbackFromDbError = (res && res.error) || 'Live DB connection failed';
+    return localDemo;
   },
 
   async fetchProductById(id) {
-    return await request(`/api/products/${id}`, { method: 'GET' });
+    if (isDemoMode()) {
+      const p = DEMO_PRODUCTS.find(item => String(item.id) === String(id));
+      if (p) return { success: true, data: p, isDemo: true };
+    }
+    const res = await request(`/api/products/${id}`, { method: 'GET' });
+    if (res && res.success && res.data) return res;
+
+    // Fallback to demo product by ID if DB query failed
+    const p = DEMO_PRODUCTS.find(item => String(item.id) === String(id));
+    if (p) return { success: true, data: p, isDemo: true, fallbackFromDbError: res && res.error };
+    return res;
   },
 
   async createProduct(productData) {
@@ -142,9 +190,15 @@ export const Api = {
     });
   },
 
-  async seedData() {
-    return await request('/api/products/seed', {
-      method: 'POST'
-    });
+  async fetchDemoProducts(params = {}) {
+    const searchParams = new URLSearchParams();
+    for (const [key, val] of Object.entries(params)) {
+      if (val !== undefined && val !== null && String(val).trim() !== '') {
+        searchParams.append(key, String(val).trim());
+      }
+    }
+    const queryStr = searchParams.toString();
+    const endpoint = `/api/products/demo${queryStr ? '?' + queryStr : ''}`;
+    return await request(endpoint, { method: 'GET' });
   }
 };

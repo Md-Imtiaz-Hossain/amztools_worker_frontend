@@ -1,5 +1,5 @@
 import { getAuthStatus, clearSession, subscribeAuth } from '../auth.js';
-import { getApiBaseUrl, setApiBaseUrl, PRODUCTION_BACKEND_URL, LOCAL_BACKEND_URL } from '../config.js';
+import { getApiBaseUrl, setApiBaseUrl, PRODUCTION_BACKEND_URL, LOCAL_BACKEND_URL, isDemoMode, setDemoMode } from '../config.js';
 import { openLoginModal } from './loginModal.js';
 import { Api } from '../api.js';
 import { showToast } from '../utils/toast.js';
@@ -52,6 +52,7 @@ function renderNavHtml() {
     </header>
 
     <!-- Worker Settings Modal / Dialog -->
+    <!-- Worker Settings Modal / Dialog -->
     <div class="modal-backdrop" id="api-config-modal">
       <div class="modal-dialog modal-sm" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
         <div class="modal-header">
@@ -60,29 +61,27 @@ function renderNavHtml() {
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label style="font-weight: 600; margin-bottom: 6px; display: block;">Quick Environment Presets</label>
-            <div style="display: flex; gap: 8px; margin-bottom: 14px;">
-              <button type="button" class="btn btn-sm btn-outline" id="preset-prod-btn" style="flex: 1; text-align: center; border-color: #22c55e; font-weight: 600;" title="Connect directly to remote Cloudflare D1 database">
-                🟢 Live Cloudflare D1
+            <label style="font-weight: 600; margin-bottom: 6px; display: block;">Connection Mode</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+              <button type="button" class="btn btn-sm btn-outline" id="btn-mode-db" style="flex: 1; text-align: center; font-weight: 600;" title="Connect directly to Cloudflare D1 Database">
+                🟢 Live DB
               </button>
-              <button type="button" class="btn btn-sm btn-outline" id="preset-local-btn" style="flex: 1; text-align: center; border-color: #3b82f6; font-weight: 600;" title="Connect to local wrangler dev worker">
-                💻 Local Worker (8787)
+              <button type="button" class="btn btn-sm btn-outline" id="btn-mode-demo" style="flex: 1; text-align: center; font-weight: 600;" title="Test using local demo data">
+                🟡 Local Demo Data
               </button>
             </div>
-            <label for="cfg-api-url">Worker API Base URL</label>
+
+            <label for="cfg-api-url" style="font-weight: 600; margin-bottom: 4px; display: block;">Worker API URL</label>
             <input type="url" id="cfg-api-url" class="form-control" value="${apiUrl}" placeholder="https://amztools-worker-backend.imtiaz15-11790.workers.dev" />
-            <small class="form-text">Choose <strong>Live Cloudflare D1</strong> to query the real Cloudflare database from localhost.</small>
           </div>
-          <div class="modal-tool-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button type="button" class="btn btn-xs btn-outline" id="btn-test-connection">Test Connection</button>
-            <button type="button" class="btn btn-xs btn-outline" id="btn-init-db">Initialize D1 Table</button>
-            <button type="button" class="btn btn-xs btn-outline" id="btn-seed-db">Seed Sample Data</button>
+          <div class="modal-tool-actions" style="margin-top: 10px;">
+            <button type="button" class="btn btn-sm btn-outline" id="btn-test-connection" style="width: 100%;">Test Connection</button>
           </div>
           <div id="cfg-test-result" class="mt-2 text-sm"></div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="api-config-cancel">Cancel</button>
-          <button type="button" class="btn btn-primary" id="api-config-save">Save & Reconnect</button>
+          <button type="button" class="btn btn-primary" id="api-config-save">Save</button>
         </div>
       </div>
     </div>
@@ -125,6 +124,12 @@ async function checkApiHealth() {
   const text = navEl.querySelector('#api-status-text');
   if (!dot || !text) return;
 
+  if (isDemoMode()) {
+    dot.className = 'status-dot status-warning';
+    text.textContent = 'Demo Data Ready';
+    return;
+  }
+
   const currentUrl = getApiBaseUrl();
   const isProd = currentUrl.includes('workers.dev');
   const envLabel = isProd ? 'Live D1' : 'Local (8787)';
@@ -132,15 +137,20 @@ async function checkApiHealth() {
   try {
     const res = await Api.fetchProducts({ limit: 1 });
     if (res && res.success !== false) {
-      dot.className = 'status-dot status-online';
-      text.textContent = `${envLabel} Connected`;
+      if (res.fallbackFromDbError) {
+        dot.className = 'status-dot status-warning';
+        text.textContent = 'Demo Data (DB Offline)';
+      } else {
+        dot.className = 'status-dot status-online';
+        text.textContent = `${envLabel} Connected`;
+      }
     } else {
       dot.className = 'status-dot status-warning';
-      text.textContent = `${envLabel} Warning`;
+      text.textContent = 'Demo Data (DB Offline)';
     }
   } catch (err) {
-    dot.className = 'status-dot status-offline';
-    text.textContent = `${envLabel} Offline`;
+    dot.className = 'status-dot status-warning';
+    text.textContent = 'Demo Data (DB Offline)';
   }
 }
 
@@ -151,15 +161,37 @@ function bindNavEvents(onReloadNeeded) {
   const cancelConfigBtn = navEl.querySelector('#api-config-cancel');
   const saveConfigBtn = navEl.querySelector('#api-config-save');
   const testConnBtn = navEl.querySelector('#btn-test-connection');
-  const initDbBtn = navEl.querySelector('#btn-init-db');
-  const seedDbBtn = navEl.querySelector('#btn-seed-db');
-  const presetProdBtn = navEl.querySelector('#preset-prod-btn');
-  const presetLocalBtn = navEl.querySelector('#preset-local-btn');
+  const modeDbBtn = navEl.querySelector('#btn-mode-db');
+  const modeDemoBtn = navEl.querySelector('#btn-mode-demo');
   const testResult = navEl.querySelector('#cfg-test-result');
   const urlInput = navEl.querySelector('#cfg-api-url');
 
+  let activeMode = isDemoMode() ? 'demo' : 'db';
+
+  const updateModeStyles = () => {
+    if (activeMode === 'db') {
+      modeDbBtn.style.borderColor = '#22c55e';
+      modeDbBtn.style.color = '#22c55e';
+      modeDbBtn.style.backgroundColor = 'rgba(34, 197, 94, 0.15)';
+
+      modeDemoBtn.style.borderColor = '#475569';
+      modeDemoBtn.style.color = '#94a3b8';
+      modeDemoBtn.style.backgroundColor = 'transparent';
+    } else {
+      modeDemoBtn.style.borderColor = '#f59e0b';
+      modeDemoBtn.style.color = '#f59e0b';
+      modeDemoBtn.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
+
+      modeDbBtn.style.borderColor = '#475569';
+      modeDbBtn.style.color = '#94a3b8';
+      modeDbBtn.style.backgroundColor = 'transparent';
+    }
+  };
+
   const openConfig = () => {
+    activeMode = isDemoMode() ? 'demo' : 'db';
     urlInput.value = getApiBaseUrl();
+    updateModeStyles();
     testResult.innerHTML = '';
     configModal.classList.add('modal-active');
   };
@@ -172,73 +204,110 @@ function bindNavEvents(onReloadNeeded) {
     if (e.target === configModal) closeConfig();
   });
 
-  const runTestConnection = async (targetUrl) => {
+  const runTestConnection = async (targetUrl, mode = activeMode) => {
     testResult.innerHTML = '<span class="text-muted">Testing connection...</span>';
+
+    if (mode === 'demo') {
+      try {
+        const res = await fetch(`${targetUrl}/api/products/demo?limit=1`).catch(() => null);
+        if (res && res.ok) {
+          testResult.innerHTML = `<span class="text-profit-pos" style="color: #f59e0b;">✓ Connected to Worker! Demo Data ready.</span>`;
+          return;
+        }
+      } catch (e) {}
+      testResult.innerHTML = `<span class="text-profit-pos" style="color: #f59e0b;">✓ Demo Data Ready (10 sample products loaded for testing).</span>`;
+      return;
+    }
+
+    // Testing Live DB mode
     try {
-      const res = await fetch(`${targetUrl}/`);
-      const data = await res.json();
-      testResult.innerHTML = `<span class="text-profit-pos">✓ Connected! ${data.name || 'Worker API Online'}</span>`;
+      const res = await fetch(`${targetUrl}/api/products?limit=1`);
+      const data = await res.json().catch(() => null);
+      if (res.ok && data && data.success && Array.isArray(data.data)) {
+        const total = (data.pagination && data.pagination.totalItems) ?? data.data.length;
+        testResult.innerHTML = `<span class="text-profit-pos">✓ Connected to Live D1 Database! (${total} records available)</span>`;
+      } else {
+        const errMsg = (data && (data.error || data.message)) || `Server status ${res.status}`;
+        testResult.innerHTML = `
+          <div style="color: #ef4444; margin-bottom: 6px;">✕ Live DB Connection failed: ${errMsg}</div>
+          <div style="padding: 6px 10px; background: rgba(245, 158, 11, 0.12); border: 1px solid #d97706; border-radius: 4px; font-size: 11px;">
+            <div style="color: #fbbf24; margin-bottom: 4px;">⚠️ Live DB is unreachable, but you can test using local demo data!</div>
+            <button type="button" class="btn btn-xs btn-outline" id="btn-quick-switch-demo" style="border-color: #f59e0b; color: #f59e0b; font-weight: 600;">👉 Switch to Local Demo Data</button>
+          </div>
+        `;
+        const switchBtn = testResult.querySelector('#btn-quick-switch-demo');
+        if (switchBtn) {
+          switchBtn.addEventListener('click', () => {
+            activeMode = 'demo';
+            if (!urlInput.value || urlInput.value === PRODUCTION_BACKEND_URL) {
+              urlInput.value = LOCAL_BACKEND_URL;
+            }
+            updateModeStyles();
+            runTestConnection(urlInput.value.trim(), 'demo');
+          });
+        }
+      }
     } catch (e) {
-      testResult.innerHTML = `<span class="text-profit-neg">✕ Failed to connect: ${e.message}</span>`;
+      testResult.innerHTML = `
+        <div style="color: #ef4444; margin-bottom: 6px;">✕ Live DB Connection failed: ${e.message}</div>
+        <div style="padding: 6px 10px; background: rgba(245, 158, 11, 0.12); border: 1px solid #d97706; border-radius: 4px; font-size: 11px;">
+          <div style="color: #fbbf24; margin-bottom: 4px;">⚠️ Live DB is unreachable, but you can test using local demo data!</div>
+          <button type="button" class="btn btn-xs btn-outline" id="btn-quick-switch-demo" style="border-color: #f59e0b; color: #f59e0b; font-weight: 600;">👉 Switch to Local Demo Data</button>
+        </div>
+      `;
+      const switchBtn = testResult.querySelector('#btn-quick-switch-demo');
+      if (switchBtn) {
+        switchBtn.addEventListener('click', () => {
+          activeMode = 'demo';
+          if (!urlInput.value || urlInput.value === PRODUCTION_BACKEND_URL) {
+            urlInput.value = LOCAL_BACKEND_URL;
+          }
+          updateModeStyles();
+          runTestConnection(urlInput.value.trim(), 'demo');
+        });
+      }
     }
   };
 
-  if (presetProdBtn) {
-    presetProdBtn.addEventListener('click', () => {
+  if (modeDbBtn) {
+    modeDbBtn.addEventListener('click', () => {
+      activeMode = 'db';
       urlInput.value = PRODUCTION_BACKEND_URL;
-      runTestConnection(PRODUCTION_BACKEND_URL);
+      updateModeStyles();
+      runTestConnection(PRODUCTION_BACKEND_URL, 'db');
     });
   }
 
-  if (presetLocalBtn) {
-    presetLocalBtn.addEventListener('click', () => {
-      urlInput.value = LOCAL_BACKEND_URL;
-      runTestConnection(LOCAL_BACKEND_URL);
+  if (modeDemoBtn) {
+    modeDemoBtn.addEventListener('click', () => {
+      activeMode = 'demo';
+      if (!urlInput.value || urlInput.value === PRODUCTION_BACKEND_URL) {
+        urlInput.value = LOCAL_BACKEND_URL;
+      }
+      updateModeStyles();
+      runTestConnection(urlInput.value.trim(), 'demo');
     });
   }
 
   testConnBtn.addEventListener('click', () => {
-    runTestConnection(urlInput.value.trim());
+    runTestConnection(urlInput.value.trim(), activeMode);
   });
-
-  initDbBtn.addEventListener('click', async () => {
-    testResult.innerHTML = '<span class="text-muted">Initializing Cloudflare D1 wholesale_products table...</span>';
-    const res = await Api.initTable();
-    if (res && res.success) {
-      testResult.innerHTML = `<span class="text-profit-pos">✓ D1 Table initialized successfully!</span>`;
-      showToast('Table wholesale_products ready in D1', 'success');
-      if (typeof onReloadNeeded === 'function') onReloadNeeded();
-    } else {
-      testResult.innerHTML = `<span class="text-profit-neg">✕ Init failed: ${(res && res.error) || 'Error'}</span>`;
-    }
-  });
-
-  if (seedDbBtn) {
-    seedDbBtn.addEventListener('click', async () => {
-      testResult.innerHTML = '<span class="text-muted">Seeding sample wholesale products...</span>';
-      const res = await Api.seedData();
-      if (res && res.success) {
-        testResult.innerHTML = `<span class="text-profit-pos">✓ Successfully seeded products!</span>`;
-        showToast('Sample products seeded into database', 'success');
-        if (typeof onReloadNeeded === 'function') onReloadNeeded();
-      } else {
-        testResult.innerHTML = `<span class="text-profit-neg">✕ Seeding failed: ${(res && res.error) || 'Error'}</span>`;
-      }
-    });
-  }
 
   saveConfigBtn.addEventListener('click', () => {
     const newUrl = urlInput.value.trim();
     if (newUrl) {
       setApiBaseUrl(newUrl);
-      const docsLink = navEl.querySelector('#nav-docs-link');
-      if (docsLink) docsLink.href = `${newUrl}/docs`;
-      showToast('API URL saved. Reconnecting...', 'info');
-      closeConfig();
-      checkApiHealth();
-      if (typeof onReloadNeeded === 'function') {
-        onReloadNeeded();
-      }
+    }
+    setDemoMode(activeMode === 'demo');
+    const docsLink = navEl.querySelector('#nav-docs-link');
+    if (docsLink) docsLink.href = `${newUrl || getApiBaseUrl()}/docs`;
+
+    const modeMsg = activeMode === 'demo' ? 'Switched to Local Demo Data mode' : 'Switched to Live DB Connection';
+    showToast(`${modeMsg}. Reloading...`, 'info');
+    closeConfig();
+    checkApiHealth();
+    if (typeof onReloadNeeded === 'function') {
+      onReloadNeeded();
     }
   });
 }

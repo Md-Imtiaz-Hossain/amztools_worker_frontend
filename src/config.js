@@ -4,6 +4,7 @@
 
 const STORAGE_KEYS = {
   API_BASE_URL: 'amz_api_base_url',
+  DEMO_MODE: 'amz_demo_mode',
   AUTH_TOKEN: 'amz_auth_token',
   AUTH_USER: 'amz_auth_user',
   AUTH_EXPIRY: 'amz_auth_expiry',
@@ -87,6 +88,23 @@ export function setSavedPageSize(limit) {
     const val = parseInt(limit, 10);
     if (!isNaN(val) && val >= 1 && val <= 100) {
       localStorage.setItem(STORAGE_KEYS.PAGE_SIZE, String(val));
+    }
+  }
+}
+
+export function isDemoMode() {
+  if (typeof localStorage !== 'undefined') {
+    return localStorage.getItem(STORAGE_KEYS.DEMO_MODE) === 'true';
+  }
+  return false;
+}
+
+export function setDemoMode(enabled) {
+  if (typeof localStorage !== 'undefined') {
+    if (enabled) {
+      localStorage.setItem(STORAGE_KEYS.DEMO_MODE, 'true');
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.DEMO_MODE);
     }
   }
 }
