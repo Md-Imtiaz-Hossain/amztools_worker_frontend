@@ -4,6 +4,17 @@ Single-Page Web Application designed specifically for wholesale product catalog 
 
 ---
 
+## Dashboard
+![img.png](src/assets/img.png)
+
+![img_4.png](src/assets/img_4.png)
+## Column Setting, total column 68
+![img_1.png](src/assets/img_1.png)
+## Details (Buttons: Financial, Dimension, Review, Image, JSON)
+![img_2.png](src/assets/img_2.png)
+
+![img_3.png](src/assets/img_3.png)
+
 ## Key Features
 
 1. **Single-Page Application (SPA) with Modular Architecture**:
