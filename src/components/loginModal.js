@@ -39,21 +39,17 @@ function createLoginModalDom() {
       </div>
       <form id="login-form">
         <div class="modal-body">
-          <p class="modal-subtitle">Sign in to manage product catalog (Create, Update, Delete). Session remains active for 1 week.</p>
+          <p class="modal-subtitle">Sign in to access your wholesale catalog account. Session remains active for 1 month.</p>
           <div id="login-error" class="form-error-banner"></div>
           
           <div class="form-group">
-            <label for="login-username">Username</label>
-            <input type="text" id="login-username" class="form-control" placeholder="e.g. admin" required autocomplete="username" />
+            <label for="login-username">Email or Username</label>
+            <input type="text" id="login-username" class="form-control" placeholder="e.g. user@example.com or admin" required autocomplete="username" />
           </div>
           
           <div class="form-group">
             <label for="login-password">Password</label>
             <input type="password" id="login-password" class="form-control" placeholder="••••••••" required autocomplete="current-password" />
-          </div>
-
-          <div class="login-hint">
-            <span>Default credentials configured in code: <code>admin</code> / <code>password123</code></span>
           </div>
         </div>
         <div class="modal-footer">
@@ -88,8 +84,10 @@ function createLoginModalDom() {
     try {
       const res = await Api.login(username, password);
       if (res && res.success && res.token) {
-        saveSession(res.token, res.user, res.expiresInSeconds || 7 * 24 * 3600);
-        showToast(`Welcome back, ${res.user.username}! Session active for 1 week.`, 'success');
+        saveSession(res.token, res.user, res.expiresInSeconds || 30 * 24 * 3600);
+        const name = (res.user && (res.user.full_name || res.user.email || res.user.username)) || 'User';
+        const roleStr = (res.user && res.user.role) ? ` [${res.user.role}]` : '';
+        showToast(`Welcome back, ${name}${roleStr}! Session active for 1 month.`, 'success');
         closeLoginModal();
       } else {
         errorEl.textContent = (res && res.error) || 'Invalid username or password';

@@ -1,18 +1,19 @@
-import { getAuthStatus } from '../auth.js';
+import { getAuthStatus, canWriteProducts } from '../auth.js';
 import { downloadSelectedData } from './exportService.js';
 import { openCreateModal } from './createEditModal.js';
 import { openColumnSettingsModal } from './columnSettingsModal.js';
 
 export function renderToolbar(containerEl, state, handlers) {
-  const { isAuthenticated } = getAuthStatus();
+  const { isAuthenticated, user } = getAuthStatus();
+  const canWrite = isAuthenticated && canWriteProducts(user);
   const selectedCount = state.selectedIds ? state.selectedIds.size : 0;
   const activeFilterCount = Object.keys(state.columnFilters || {}).length;
 
   containerEl.innerHTML = `
     <div class="table-toolbar">
       <div class="toolbar-left">
-        <!-- Create Button (Hidden when not logged in) -->
-        ${isAuthenticated ? `
+        <!-- Create Button (Visible to SuperAdmin & Admin; hidden for Customer & Guest) -->
+        ${canWrite ? `
           <button type="button" class="btn btn-primary btn-create" id="btn-create-product">
             <span class="btn-icon">＋</span> Create Product
           </button>

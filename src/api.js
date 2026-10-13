@@ -73,11 +73,11 @@ async function request(endpoint, options = {}) {
 }
 
 export const Api = {
-  // Authentication
-  async login(username, password) {
+  // Authentication & Users
+  async login(identifier, password) {
     return await request('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ email: identifier, username: identifier, password })
     });
   },
 
@@ -90,6 +90,19 @@ export const Api = {
   async verifyMe() {
     return await request('/api/auth/me', {
       method: 'GET'
+    });
+  },
+
+  async fetchUsers() {
+    return await request('/api/users', {
+      method: 'GET'
+    });
+  },
+
+  async createUser(userData) {
+    return await request('/api/users', {
+      method: 'POST',
+      body: JSON.stringify(userData)
     });
   },
 

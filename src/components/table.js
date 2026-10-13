@@ -1,5 +1,5 @@
 import { COLUMN_MAP, NUMERIC_COLUMNS, renderCellContent } from '../columns.js';
-import { getAuthStatus } from '../auth.js';
+import { getAuthStatus, canWriteProducts } from '../auth.js';
 import { openDetailsModal } from './detailsModal.js';
 import { openEditModal } from './createEditModal.js';
 import { Api } from '../api.js';
@@ -31,7 +31,8 @@ function getPageNumbers(currentPage, totalPages) {
 }
 
 export function renderTable(containerEl, state, handlers) {
-  const { isAuthenticated } = getAuthStatus();
+  const { isAuthenticated, user } = getAuthStatus();
+  const canWrite = isAuthenticated && canWriteProducts(user);
   const visibleCols = state.visibleColumns.map(key => COLUMN_MAP.get(key)).filter(Boolean);
   const products = state.products || [];
   const selectedIds = state.selectedIds || new Set();
@@ -129,8 +130,8 @@ export function renderTable(containerEl, state, handlers) {
                 `;
               }).join('')}
 
-              <!-- Actions Column Header (Only visible when logged in) -->
-              ${isAuthenticated ? `
+              <!-- Actions Column Header (Only visible when user has write access: SuperAdmin & Admin) -->
+              ${canWrite ? `
                 <th class="th-actions">Actions</th>
               ` : ''}
             </tr>
@@ -139,14 +140,14 @@ export function renderTable(containerEl, state, handlers) {
           <tbody id="table-body">
             ${state.isLoading ? `
               <tr>
-                <td colspan="${visibleCols.length + (isAuthenticated ? 3 : 2)}" class="td-loading">
+                <td colspan="${visibleCols.length + (canWrite ? 3 : 2)}" class="td-loading">
                   <div class="loading-spinner"></div>
                   <span>Loading product catalog data...</span>
                 </td>
               </tr>
             ` : products.length === 0 ? `
               <tr>
-                <td colspan="${visibleCols.length + (isAuthenticated ? 3 : 2)}" class="td-empty">
+                <td colspan="${visibleCols.length + (canWrite ? 3 : 2)}" class="td-empty">
                   <div class="empty-state-box">
                     <span class="empty-icon">📦</span>
                     <p class="empty-title">No wholesale products found</p>
@@ -177,8 +178,8 @@ export function renderTable(containerEl, state, handlers) {
                     </td>
                   `).join('')}
 
-                  <!-- Actions Column (Only visible when logged in) -->
-                  ${isAuthenticated ? `
+                  <!-- Actions Column (Only visible when user has write access: SuperAdmin & Admin) -->
+                  ${canWrite ? `
                     <td class="td-actions">
                       <div class="action-btn-group">
                         <button type="button" class="btn btn-xs btn-outline btn-edit" data-id="${product.id}" title="Edit product">

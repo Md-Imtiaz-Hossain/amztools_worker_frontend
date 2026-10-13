@@ -1,6 +1,7 @@
-import { getAuthStatus, clearSession, subscribeAuth } from '../auth.js';
+import { getAuthStatus, clearSession, subscribeAuth, isSuperAdmin, isAdmin, isCustomer } from '../auth.js';
 import { getApiBaseUrl, setApiBaseUrl, PRODUCTION_BACKEND_URL, LOCAL_BACKEND_URL, isDemoMode, setDemoMode } from '../config.js';
 import { openLoginModal } from './loginModal.js';
+import { openCreateUserModal } from './createUserModal.js';
 import { Api } from '../api.js';
 import { showToast } from '../utils/toast.js';
 
@@ -98,12 +99,52 @@ function updateNavAuthState() {
   const { isAuthenticated, user } = getAuthStatus();
 
   if (isAuthenticated && user) {
+    const isSuper = isSuperAdmin(user);
+    const isAdm = isAdmin(user);
+    const isCust = isCustomer(user);
+
+    let roleIcon = '👤';
+    let roleClass = 'role-admin';
+    let roleTitle = 'Role: User • Session active for 1 month';
+
+    if (isSuper) {
+      roleIcon = '⚡';
+      roleClass = 'role-superadmin';
+      roleTitle = 'Role: Super admin • Access everything • Session active for 1 month';
+    } else if (isAdm) {
+      roleIcon = '🛡️';
+      roleClass = 'role-admin';
+      roleTitle = 'Role: Admin • Full catalog access • Session active for 1 month';
+    } else if (isCust) {
+      roleIcon = '👤';
+      roleClass = 'role-customer';
+      roleTitle = 'Role: Customer • Read Only • Session active for 1 month';
+    }
+
+    const displayName = user.full_name || user.email || user.username || 'User';
+    const roleLabel = user.role || (isSuper ? 'Super admin' : isAdm ? 'admin' : isCust ? 'customer' : 'User');
+
     authBox.innerHTML = `
       <div class="auth-logged-in">
-        <span class="user-badge" title="Session active for 1 week">👤 ${user.username || 'Admin'}</span>
+        ${isSuper ? `
+          <button type="button" class="btn btn-sm btn-outline btn-manage-users" id="btn-create-user-nav" title="SuperAdmin: Create new user account">
+            ⚡＋ New User
+          </button>
+        ` : ''}
+        <span class="user-badge ${roleClass}" title="${roleTitle}">
+          ${roleIcon} ${displayName} <span class="role-tag">${roleLabel}</span>
+        </span>
         <button type="button" class="btn btn-sm btn-outline btn-logout" id="btn-logout">Log Out</button>
       </div>
     `;
+
+    if (isSuper) {
+      const createUserBtn = authBox.querySelector('#btn-create-user-nav');
+      if (createUserBtn) {
+        createUserBtn.addEventListener('click', openCreateUserModal);
+      }
+    }
+
     authBox.querySelector('#btn-logout').addEventListener('click', () => {
       clearSession();
       showToast('Logged out successfully', 'info');
