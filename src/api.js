@@ -73,7 +73,7 @@ async function request(endpoint, options = {}) {
 }
 
 export const Api = {
-  // Authentication & Users
+  // Authentication
   async login(identifier, password) {
     return await request('/api/auth/login', {
       method: 'POST',
@@ -90,19 +90,6 @@ export const Api = {
   async verifyMe() {
     return await request('/api/auth/me', {
       method: 'GET'
-    });
-  },
-
-  async fetchUsers() {
-    return await request('/api/users', {
-      method: 'GET'
-    });
-  },
-
-  async createUser(userData) {
-    return await request('/api/users', {
-      method: 'POST',
-      body: JSON.stringify(userData)
     });
   },
 

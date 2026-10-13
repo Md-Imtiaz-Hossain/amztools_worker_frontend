@@ -1,11 +1,11 @@
-import { getAuthStatus, canWriteProducts } from '../auth.js';
+import { getAuthStatus } from '../auth.js';
 import { downloadSelectedData } from './exportService.js';
 import { openCreateModal } from './createEditModal.js';
 import { openColumnSettingsModal } from './columnSettingsModal.js';
 
 export function renderToolbar(containerEl, state, handlers) {
   const { isAuthenticated, user } = getAuthStatus();
-  const canWrite = isAuthenticated && canWriteProducts(user);
+  const canWrite = isAuthenticated && Boolean(user?.canWrite);
   const selectedCount = state.selectedIds ? state.selectedIds.size : 0;
   const activeFilterCount = Object.keys(state.columnFilters || {}).length;
 

@@ -26,7 +26,6 @@ export function getAuthStatus() {
 
   const expiryTimestamp = parseInt(expiry, 10);
   if (isNaN(expiryTimestamp) || Date.now() > expiryTimestamp) {
-    // Session expired after 1 month
     clearSession();
     return { isAuthenticated: false, user: null, token: null };
   }
@@ -59,50 +58,4 @@ export function clearSession() {
   localStorage.removeItem(STORAGE_KEYS.AUTH_EXPIRY);
   localStorage.removeItem(STORAGE_KEYS.AUTH_USER);
   notifyAuth();
-}
-
-/**
- * Role & Permission Helpers based on backend configuration:
- * - Super admin: Access everything (product CRUD, user management, create new users)
- * - admin: Restrict only create new user, permit everything else (product CRUD, editing, deleting)
- * - customer: Like guest user, only read data (read-only: cannot create/edit/delete products)
- */
-
-export function normalizeRole(role) {
-  if (!role || typeof role !== 'string') return '';
-  const clean = role.trim().toLowerCase().replace(/[-_]/g, ' ');
-  if (clean === 'super admin' || clean === 'superadmin') return 'Super admin';
-  if (clean === 'admin') return 'admin';
-  if (clean === 'customer' || clean === 'guest') return 'customer';
-  return role.trim();
-}
-
-export function isSuperAdmin(user) {
-  if (!user || !user.role) return false;
-  return normalizeRole(user.role) === 'Super admin';
-}
-
-export function isAdmin(user) {
-  if (!user || !user.role) return false;
-  return normalizeRole(user.role) === 'admin';
-}
-
-export function isCustomer(user) {
-  if (!user || !user.role) return false;
-  return normalizeRole(user.role) === 'customer';
-}
-
-export function canWriteProducts(user) {
-  if (!user) return false;
-  const role = normalizeRole(user.role);
-  // Super admin and admin can create/edit/delete products; customer has read-only access
-  return role === 'Super admin' || role === 'admin';
-}
-
-export function canCreateUsers(user) {
-  if (!user) return false;
-  // SuperAdmin: Access everything (can create new users)
-  // Admin: Restrict only create new user
-  // Customer: Read-only
-  return isSuperAdmin(user);
 }

@@ -1,5 +1,5 @@
 import { COLUMN_MAP, NUMERIC_COLUMNS, renderCellContent } from '../columns.js';
-import { getAuthStatus, canWriteProducts } from '../auth.js';
+import { getAuthStatus } from '../auth.js';
 import { openDetailsModal } from './detailsModal.js';
 import { openEditModal } from './createEditModal.js';
 import { Api } from '../api.js';
@@ -32,7 +32,7 @@ function getPageNumbers(currentPage, totalPages) {
 
 export function renderTable(containerEl, state, handlers) {
   const { isAuthenticated, user } = getAuthStatus();
-  const canWrite = isAuthenticated && canWriteProducts(user);
+  const canWrite = isAuthenticated && Boolean(user?.canWrite);
   const visibleCols = state.visibleColumns.map(key => COLUMN_MAP.get(key)).filter(Boolean);
   const products = state.products || [];
   const selectedIds = state.selectedIds || new Set();

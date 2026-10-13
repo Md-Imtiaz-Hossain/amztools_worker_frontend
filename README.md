@@ -9,9 +9,9 @@ Single-Page Web Application designed specifically for wholesale product catalog 
 1. **Single-Page Application (SPA) with Modular Architecture**:
    - Organized into clean, maintainable ES modules (`src/components/`, `src/utils/`, `src/columns.js`, `src/api.js`, `src/auth.js`).
 2. **Session & Authentication**:
-   - Sign in via modal using hardcoded credentials (`admin` / `password123`).
-   - Session token saved in `localStorage` for **1 week (7 days)** with automatic expiry handling.
-   - **Auth-Gated Actions**: Without logging in, the `+ Create Product` button and row `Actions` column (Edit / Delete) are automatically hidden for clean read-only catalog browsing.
+   - Sign in via modal authenticated directly against the Worker Backend database.
+   - Session token saved in `localStorage` for **1 month (30 days)** with automatic expiry handling.
+   - **Backend-Driven RBAC**: Permissions and capabilities (`canWrite`) are sent directly from the backend user profile (`Super admin`, `admin`, `customer`). Without write access (e.g. Guest or Customer role), the `+ Create Product` button and row `Actions` column (Edit / Delete) are automatically hidden for clean read-only catalog browsing.
 3. **Data Analysis Table**:
    - **Pagination**: 50, 100, 150 items per page.
    - **Global Search**: Instant search matching across ASIN, Title, Brand, Wholesaler, UPC, and Category.
